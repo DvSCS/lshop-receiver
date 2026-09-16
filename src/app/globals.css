@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #f3f2f1; /* Outlook light gray background */
+  --color-foreground: #242424; /* Dark gray text */
+  --color-brand: #e60000; /* LSHOP Red */
+  --color-brand-hover: #cc0000;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+}
