@@ -21,7 +21,11 @@ export async function GET(req: Request) {
     // 1. Pegar Token
     const tokenRes = await fetch("https://api.mail.tm/token", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      headers: { 
+        "Content-Type": "application/json", 
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      },
       body: JSON.stringify({
         address: account.email,
         password: account.password
@@ -38,7 +42,8 @@ export async function GET(req: Request) {
     const msgRes = await fetch("https://api.mail.tm/messages", {
       headers: { 
         "Authorization": `Bearer ${token}`,
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
       }
     });
 
@@ -56,7 +61,11 @@ export async function GET(req: Request) {
     const fullEmails = await Promise.all(emailsToProcess.map(async (m: any) => {
       try {
         const detailRes = await fetch(`https://api.mail.tm/messages/${m.id}`, {
-          headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
+          headers: { 
+            "Authorization": `Bearer ${token}`, 
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          }
         });
         const detail = await detailRes.json();
         return {
