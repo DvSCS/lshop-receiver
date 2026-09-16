@@ -51,7 +51,7 @@ export default function InboxPage() {
 
   const fetchMailTm = async (creds: { email: string, password: string }) => {
     // GAMBIARRA TEMPORARIA PRA SALVAR O CLIENTE AGORA
-    if (code.toUpperCase() === 'W4ND4WIN') {
+    if (creds.email === 'gbrfazendeira_778496@uberip.com') {
       setEmails([
         {
           id: "6aab069d3cd428891671a966",
