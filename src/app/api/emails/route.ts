@@ -18,8 +18,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Conta não encontrada" }, { status: 404 });
     }
 
-    // Retorna os dados para o frontend fazer a busca direto da casa/celular do usuário.
-    // Isso burla o bloqueio da Cloudflare nos IPs da AWS/Vercel.
     return NextResponse.json({
       success: true,
       emailAddress: account.email,
