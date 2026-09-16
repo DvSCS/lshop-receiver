@@ -24,109 +24,22 @@ export default function InboxPage() {
   const [copied, setCopied] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
 
-  const [credentials, setCredentials] = useState<{email: string, password: string} | null>(null);
-
-  const fetchCredentials = async () => {
-    setLoading(true);
+  const fetchEmails = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const res = await fetch(`/api/emails?code=${code}`);
       if (!res.ok) {
         if (res.status === 401 || res.status === 404) {
           router.push("/");
-          return null;
+          return;
         }
-        throw new Error("Falha ao carregar credenciais");
+        throw new Error("Falha ao carregar emails");
       }
       const data = await res.json();
-      const creds = { email: data.emailAddress, password: data.password };
-      setCredentials(creds);
-      setEmailAddress(creds.email);
-      return creds;
+      setEmailAddress(data.emailAddress);
+      setEmails(data.emails || []);
     } catch (err) {
       console.error(err);
-      setLoading(false);
-      return null;
-    }
-  };
-
-  const fetchMailTm = async (creds: { email: string, password: string }) => {
-    // GAMBIARRA TEMPORARIA PRA SALVAR O CLIENTE AGORA
-    if (creds.email === 'gbrfazendeira_778496@uberip.com') {
-      setEmails([
-        {
-          id: "6aab069d3cd428891671a966",
-          from: "account-security-noreply@accountprotection.microsoft.com",
-          subject: "Código de segurança da conta Microsoft pessoal",
-          bodyText: "Use o código de segurança a seguir para sua conta Microsoft pessoal. Código de segurança: 190492",
-          receivedAt: "2026-09-16T21:14:02+00:00"
-        },
-        {
-          id: "6aab0302bacf78fddeeef769",
-          from: "account-security-noreply@accountprotection.microsoft.com",
-          subject: "Código de segurança da conta Microsoft pessoal",
-          bodyText: "Use o código de segurança a seguir para sua conta Microsoft pessoal. Código de segurança: 991494",
-          receivedAt: "2026-09-16T20:58:40+00:00"
-        },
-        {
-          id: "6aaae5e58b9d7bc71f8a0eed",
-          from: "account-security-noreply@accountprotection.microsoft.com",
-          subject: "Código de segurança da conta Microsoft pessoal",
-          bodyText: "Use o código de segurança a seguir para sua conta Microsoft pessoal. Código de segurança: 338220",
-          receivedAt: "2026-09-16T18:54:21+00:00"
-        }
-      ]);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const tokenRes = await fetch("https://api.mail.tm/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ address: creds.email, password: creds.password })
-      });
-      
-      if (!tokenRes.ok) throw new Error("Erro autenticação mail.tm");
-      const { token } = await tokenRes.json();
-
-      const msgRes = await fetch("https://api.mail.tm/messages", {
-        headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
-      });
-      
-      if (!msgRes.ok) throw new Error("Erro mensagens mail.tm");
-      const msgData = await msgRes.json();
-      const messages = Array.isArray(msgData) ? msgData : (msgData["hydra:member"] || []);
-
-      const emailsToProcess = messages.slice(0, 10);
-      const fullEmails = await Promise.all(emailsToProcess.map(async (m: any) => {
-        try {
-          const detailRes = await fetch(`https://api.mail.tm/messages/${m.id}`, {
-            headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
-          });
-          const detail = await detailRes.json();
-          return {
-            id: m.id,
-            from: m.from?.address || "Desconhecido",
-            subject: m.subject || "Sem Assunto",
-            bodyText: detail.text || m.intro || "",
-            bodyHtml: detail.html || "",
-            receivedAt: m.createdAt
-          };
-        } catch (e) {
-          return {
-            id: m.id,
-            from: m.from?.address || "Desconhecido",
-            subject: m.subject || "Sem Assunto",
-            bodyText: m.intro || "",
-            bodyHtml: "",
-            receivedAt: m.createdAt
-          };
-        }
-      }));
-
-      setEmails(fullEmails);
-    } catch (err) {
-      console.error("Erro ao buscar no mail.tm client-side:", err);
     } finally {
       setLoading(false);
     }
@@ -134,34 +47,17 @@ export default function InboxPage() {
 
   useEffect(() => {
     if (!code) return;
-    
-    let currentCreds: {email: string, password: string} | null = null;
-
-    const init = async () => {
-      const creds = await fetchCredentials();
-      if (creds) {
-        currentCreds = creds;
-        await fetchMailTm(creds);
-      }
-    };
-    init();
+    fetchEmails();
 
     const interval = setInterval(() => {
-      if (currentCreds) {
-        fetchMailTm(currentCreds);
-      }
+      fetchEmails(true);
     }, 10000);
 
     return () => clearInterval(interval);
   }, [code]);
 
   const handleRefresh = () => {
-    if (credentials) {
-      setLoading(true);
-      fetchMailTm(credentials);
-    } else {
-      fetchCredentials().then(c => c && fetchMailTm(c));
-    }
+    fetchEmails();
   };
 
   const copyToClipboard = () => {

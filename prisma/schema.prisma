@@ -8,9 +8,23 @@ datasource db {
 }
 
 model Account {
-  id        String   @id @default(uuid())
-  code      String   @unique // O código de 6 dígitos (ex: 676767)
-  email     String   @unique // O email gerado no mail.tm
-  password  String   // A senha gerada no mail.tm
-  createdAt DateTime @default(now())
+  id        String    @id @default(uuid())
+  code      String    @unique // O código de 6 dígitos (ex: 676767)
+  email     String    @unique // O email gerado no mail.tm
+  password  String    // A senha gerada no mail.tm
+  createdAt DateTime  @default(now())
+  messages  Message[]
 }
+
+model Message {
+  id         String   @id // ID que vem direto do mail.tm
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  from       String
+  subject    String
+  bodyText   String
+  bodyHtml   String
+  receivedAt DateTime
+  createdAt  DateTime @default(now())
+}
+

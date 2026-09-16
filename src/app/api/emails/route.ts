@@ -12,6 +12,11 @@ export async function GET(req: Request) {
 
     const account = await prisma.account.findUnique({
       where: { code: code.toUpperCase() },
+      include: {
+        messages: {
+          orderBy: { receivedAt: 'desc' }
+        }
+      }
     });
 
     if (!account) {
@@ -21,7 +26,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       emailAddress: account.email,
-      password: account.password,
+      emails: account.messages,
     });
   } catch (error: any) {
     console.error("Emails Fetch Error:", error);
