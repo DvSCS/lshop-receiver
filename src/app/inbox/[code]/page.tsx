@@ -24,22 +24,80 @@ export default function InboxPage() {
   const [copied, setCopied] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
 
-  const fetchEmails = async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
+  const [credentials, setCredentials] = useState<{email: string, password: string} | null>(null);
+
+  const fetchCredentials = async () => {
+    setLoading(true);
     try {
       const res = await fetch(`/api/emails?code=${code}`);
       if (!res.ok) {
         if (res.status === 401 || res.status === 404) {
           router.push("/");
-          return;
+          return null;
         }
-        throw new Error("Falha ao carregar emails");
+        throw new Error("Falha ao carregar credenciais");
       }
       const data = await res.json();
-      setEmailAddress(data.emailAddress);
-      setEmails(data.emails);
+      const creds = { email: data.emailAddress, password: data.password };
+      setCredentials(creds);
+      setEmailAddress(creds.email);
+      return creds;
     } catch (err) {
       console.error(err);
+      setLoading(false);
+      return null;
+    }
+  };
+
+  const fetchMailTm = async (creds: { email: string, password: string }) => {
+    try {
+      const tokenRes = await fetch("https://api.mail.tm/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ address: creds.email, password: creds.password })
+      });
+      
+      if (!tokenRes.ok) throw new Error("Erro autenticação mail.tm");
+      const { token } = await tokenRes.json();
+
+      const msgRes = await fetch("https://api.mail.tm/messages", {
+        headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
+      });
+      
+      if (!msgRes.ok) throw new Error("Erro mensagens mail.tm");
+      const msgData = await msgRes.json();
+      const messages = Array.isArray(msgData) ? msgData : (msgData["hydra:member"] || []);
+
+      const emailsToProcess = messages.slice(0, 10);
+      const fullEmails = await Promise.all(emailsToProcess.map(async (m: any) => {
+        try {
+          const detailRes = await fetch(`https://api.mail.tm/messages/${m.id}`, {
+            headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
+          });
+          const detail = await detailRes.json();
+          return {
+            id: m.id,
+            from: m.from?.address || "Desconhecido",
+            subject: m.subject || "Sem Assunto",
+            bodyText: detail.text || m.intro || "",
+            bodyHtml: detail.html || "",
+            receivedAt: m.createdAt
+          };
+        } catch (e) {
+          return {
+            id: m.id,
+            from: m.from?.address || "Desconhecido",
+            subject: m.subject || "Sem Assunto",
+            bodyText: m.intro || "",
+            bodyHtml: "",
+            receivedAt: m.createdAt
+          };
+        }
+      }));
+
+      setEmails(fullEmails);
+    } catch (err) {
+      console.error("Erro ao buscar no mail.tm client-side:", err);
     } finally {
       setLoading(false);
     }
@@ -47,14 +105,35 @@ export default function InboxPage() {
 
   useEffect(() => {
     if (!code) return;
-    fetchEmails();
+    
+    let currentCreds: {email: string, password: string} | null = null;
+
+    const init = async () => {
+      const creds = await fetchCredentials();
+      if (creds) {
+        currentCreds = creds;
+        await fetchMailTm(creds);
+      }
+    };
+    init();
 
     const interval = setInterval(() => {
-      fetchEmails(true);
+      if (currentCreds) {
+        fetchMailTm(currentCreds);
+      }
     }, 10000);
 
     return () => clearInterval(interval);
   }, [code]);
+
+  const handleRefresh = () => {
+    if (credentials) {
+      setLoading(true);
+      fetchMailTm(credentials);
+    } else {
+      fetchCredentials().then(c => c && fetchMailTm(c));
+    }
+  };
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(emailAddress);
@@ -98,7 +177,7 @@ export default function InboxPage() {
           <div className="p-3 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-[15px] font-semibold text-gray-800">Caixa de Entrada</h2>
             <button 
-              onClick={() => fetchEmails()} 
+              onClick={handleRefresh} 
               className={clsx("p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors", loading && "animate-spin")}
               title="Sincronizar"
             >
